@@ -125,6 +125,21 @@ class Page():
             self._url = "http://" + self._api
     def __iter__(self):
         return iter(self.threads)
+    @classmethod
+    def create_from_json(self, page_json):
+        pass
+    def update_from_json(self, page_json):
+        if len(page_json.get("threads", [])) > 0:
+            self.threads = [[] for i in page_json["threads"]]
+            for i in range(len(self.threads)):
+                self.threads[i] = Thread.create_from_json(self.board_name, \
+                    page_json["threads"][i], session=self._session, https=self._https)
+    def update(self):
+        res = self._session.get(self._url)
+        if res.status_code == 200:
+            self.update_from_json(res.json())
+        else:
+            res.raise_from_status()
 
 
 class Thread():
@@ -153,6 +168,12 @@ class Thread():
         self.num_replies = None
     def __iter__(self):
         return iter(self.posts)
+    @classmethod
+    def create_from_json(cls, board_name, json_data, session=None, api=THREAD, https=False):
+        thread_id = json_data["posts"][0]["no"]
+        new_thread = cls(board_name, thread_id, session=session, api=api, https=https)
+        new_thread.update_from_json(json_data)
+        return new_thread
     def update_from_json(self, json_data):
         """
         Updates the current Thread object from a JSON response to a thread
@@ -167,22 +188,11 @@ class Thread():
 
         self.posts = [[] for i in range(len(json_data["posts"]))]
         for i in range(len(self.posts)):
-            self.posts[i] = Post(self, json_data["posts"][i])
-    @classmethod
-    def from_index(cls, board_name, thread_json):
-        """
-        Create a new Thread object from an entry in a ThreadIndex object.
-        """
-        pass
-    @classmethod
-    def from_catalog(cls, board_name, catalog_json):
-        """
-        Create a new Thread object from an entry in a Catalog object.
-        """
-        pass
+            self.posts[i] = Post(self.board_name, self.thread_id, \
+                json_data["posts"][i], session=self._session)
     def update(self):
         """
-        Sends a request and updates the Thread object if changes have been made
+        Send a request and update the Thread object if changes have been made
         to the thread.
         """
         res = self._session.get(self._url)
@@ -228,8 +238,10 @@ class Thread():
 
 
 class Post():
-    def __init__(self, thread, post_json):
-        self.thread = thread
+    def __init__(self, board_name, thread_id, post_json, session):
+        self.board_name = board_name
+        self.thread_id = thread_id
+        self._session = session
         self.has_file = post_json.has_key("filename")
         self.is_OP = post_json.get("resto", None) == 0
 
@@ -243,17 +255,17 @@ class Post():
         self.timestamp = post_json.get("time", None)
 
         if post_json.has_key("filename"):
-            self.file = Image(self.thread.board_name, post_json)
+            self.file = Image(self.board_name, post_json, session)
         else:
             self.file = None
     def get_name(self):
         """
-        Return the poster's name, if a name was entered.
+        Return the poster's name, if a name was entered. Otherwise return None.
         """
         return self.poster_name
     def get_email(self):
         """
-        Return the poster's email, if it exists.
+        Return the poster's email, if it exists. Otherwise return None.
         """
         return self.email
     def get_number(self):
@@ -263,7 +275,7 @@ class Post():
         return self.post_number
     def get_tripcode(self):
         """
-        Return the poster's tripcode, if it exists.
+        Return the poster's tripcode, if it exists. Otherwise return None.
         """
         return self.tripcode
     def get_subject(self):
@@ -297,8 +309,9 @@ class Post():
 
 
 class Image():
-    def __init__(self, board_name, post_json, file_api=FILE, thumb_api=THUMBNAIL):
+    def __init__(self, board_name, post_json, session, file_api=FILE, thumb_api=THUMBNAIL):
         self.board_name = board_name
+        self._session = session
         self.filename = post_json.get("filename", None)
         self.file_id = post_json.get("tim", None)
         self.file_md5_hash = post_json.get("md5", None)
@@ -310,22 +323,89 @@ class Image():
         self.thumbnail_height = post_json.get("tn_h", None)
         self.file_deleted = post_json.get("file_deleted", None) == 1
 
-        self.file_url = FILE % (self.board_name, str(self.file_id) + self.file_extension)
-        self.thumb_url = THUMBNAIL % (self.board_name, str(self.file_id))
+        self.file_url = file_api % (self.board_name, str(self.file_id) + self.file_extension)
+        self.thumb_url = thumb_api % (self.board_name, str(self.file_id))
+    def is_deleted(self):
+        """
+        Returns True if the file has been deleted, otherwise returns False.
+        """
+        return self.file_deleted
     def get_file(self):
+        """
+        Sends a request to retrieve the file.
+        """
         if self.file_deleted:
             raise(IOError("File was deleted."))
         else:
            pass
     def get_thumbnail(self):
+        """
+        Sends a request to retrieve the thumbnail image.
+        """
         if self.file_deleted:
             raise(IOError("File was deleted."))
         else:
             pass
     def get_filename(self):
+        """
+        Returns the filename of the image.
+        """
         return self.filename
+    def get_board_name(self):
+        """
+        Returns the name of the board where the file was posted, e.g. "b" or "g".
+        """
+        return self.board_name
     def get_file_id(self):
+        """
+        Returns the file id as an int.
+        """
         return self.file_id
+    def get_file_md5_hash(self):
+        """
+        Returns the MD5 hash of the file.
+        """
+        return self.file_md5_hash
+    def get_file_size(self):
+        """
+        Returns the size of the file in kilobyes.
+        """
+        return self.file_size
+    def get_extension(self):
+        """
+        Returns the file extension (e.g. .jpg or .png) of the file.
+        """
+        return self.file_extension
+    def get_width(self):
+        """
+        Returns the width of the image.
+        """
+        return self.file_width
+    def get_height(self):
+        """
+        Returns the height of image.
+        """
+        return self.file_height
+    def get_thumbnail_width(self):
+        """
+        Returns the width of the jpg thumbnail.
+        """
+        return self.thumbnail_width
+    def get_thumbnail_height(self):
+        """
+        Returns the height of the jpg thumbnail.
+        """
+        return self.thumbnail_height
+    def get_file_url(self):
+        """
+        Returns the url for the file.
+        """
+        return self.file_url
+    def get_thumbnail_url(self):
+        """
+        Returns the thumbnail url for the file.
+        """
+        return self.thumb_url
 
 
 ######################## Board Metadata Info ########################
@@ -383,7 +463,12 @@ class BoardList():
             self._url = "http://" + self._api
     def __iter__(self):
         return iter(self.board_list)
-    def get_metadata(self):
+    def get_board_list(self):
+        """
+        Returns the list of all boards we have metadata for.
+        """
+        return self.board_list
+    def update(self):
         """
         Retrieves the metadata for all boards.
         """
