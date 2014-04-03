@@ -6,76 +6,18 @@ THREAD = "a.4cdn.org/%s/res/%s.json"
 PAGE = "a.4cdn.org/%s/%s.json"
 FILE = "i.4cdn.org/%s/src/%s"
 THUMBNAIL = "t.4cdn.org/%s/thumb/%ss.jpg"
-CATALOG_INDEX = "a.4cdn.org/%s/threads.json"
-CATALOG_FULL = "a.4cdn.org/%s/catalog.json"
+INDEX = "a.4cdn.org/%s/threads.json"
+CATALOG = "a.4cdn.org/%s/catalog.json"
 BOARDS = "a.4cdn.org/boards.json"
 
 ######################## Board/Page/Thread/Post Info ########################
 
 class Board():
-    def __init__(self, board_name, session=None, https=False):
+    def __init__(self, board_name, session=None, https=False, index_api=INDEX, catalog_api=CATALOG):
         self.board_name = board_name
         self._https = https
-        if session is None:
-            self._session = requests.session()
-            self._session.headers["User-Agent"] = "pychan"
-        else:
-            self._session = session
-
-        self.pages = []
-        self.thread_index = ThreadIndex(self.board_name, session=self._session, https=self._https)
-        self.catalog = Catalog(self.board_name, session=self._session, https=self._https)
-    def __iter__(self):
-        return iter(self.thread_index.pages())
-    def update_catalog(self, api = CATALOG_FULL):
-        """
-        Send a request and update the list of items in the Catalog object.
-        """
-        self.catalog.update()
-    def update(self, api=CATALOG_INDEX):
-        """
-        Send a request and update the list of items in the ThreadIndex object.
-        """
-        for page in self.pages:
-            page.update()
-    def get_threads(self, page=None):
-        """
-        Retrieve all data related to the threads currently in the thread index.
-        The `page` parameter selects a page to retrieve threads for, otherwise
-        all threads on all pages are retrieved.
-        """
-        pass
-
-
-class Catalog():
-    def __init__(self, board_name, api=CATALOG_FULL, session=None, https=False):
-        self.board_name = board_name
-        self._https = https
-        self._api = api % self.board_name
-
-        if session is None:
-            self._session = requests.session()
-            self._session.headers["User-Agent"] = "pychan"
-        else:
-            self._session = session
-
-        if self._https:
-            self._url = "https://" + self._api
-        else:
-            self._url = "http://" + self._api
-    def update(self):
-        res = self._session.get(self._url)
-        if res.status_code == 200:
-            print res.json()
-        else:
-            res.raise_for_status()
-
-
-class ThreadIndex():
-    def __init__(self, board_name, api=CATALOG_INDEX, session=None, https=False):
-        self.board_name = board_name
-        self._https = https
-        self._api = api % self.board_name
+        self._index_api = index_api % self.board_name
+        self._catalog_api = catalog_api % self.board_name
         self.pages = []
 
         if session is None:
@@ -85,22 +27,75 @@ class ThreadIndex():
             self._session = session
 
         if self._https:
-            self._url = "https://" + self._api
+            self._index_url = "https://" + self._index_api
+            self._catalog_url = "https://" + self._catalog_api
         else:
-            self._url = "http://" + self._api
+            self._index_url = "http://" + self._index_api
+            self._catalog_url = "http://" + self._catalog_api
     def __iter__(self):
         return iter(self.pages)
-    def update(self):
+    def get_name(self):
         """
-        Send a request and update the index of current threads.
+        Return the name of the board.
         """
-        res = self._session.get(self._url)
+        return self.board_name
+    def get_pages(self):
+        """
+        Return a list of all pages in the board.
+        """
+        return self.pages
+    def get_all_threads(self):
+        """
+        Return a list of all threads in the board.
+        """
+        return [thread for page in self.pages for thread in page]
+    def update_pages(self, pages=None):
+        """
+        The `pages` parameter specifies a list of pages to retrieve
+        threads for, otherwise basic info about all threads on all pages are
+        retrieved.
+        """
+        if pages is None:
+            for page in self.pages:
+                page.update()
+        else:
+            for i in pages:
+                self.pages[i].update()
+    def update_all_threads(self):
+        """
+        Update the list of threads via the index, and then update each thread
+        individually.
+        """
+        self.update_from_index(self)
+        for page in self.pages:
+            for thread in page:
+                thread.update()
+    def update_from_index(self, api=INDEX):
+        """
+        Send a request and update the list of pages/threads via the board's
+        index.
+        """
+        res = self._session.get(self._index_url)
         if res.status_code == 200:
-            if len(self.pages) == 0:
-                self.pages = [list() for page in res.json()]
-            for page in res.json():
-                self.pages[page["page"]] = \
-                    [Thread.from_index(self.board_name, t) for t in page["threads"]]
+            index_json = res.json()
+            self.pages = [[] for p in index_json]
+            for i in range(len(self.pages)):
+                self.pages[i] = \
+                    Page.create_from_json(self.board_name, i, index_json[i])
+        else:
+            res.raise_for_status()
+    def update_from_catalog(self, api=CATALOG):
+        """
+        Send a request and update the list of pages/threads via the board's
+        catalog.
+        """
+        res = self._session.get(self._catalog_url)
+        if res.status_code == 200:
+            catalog_json = res.json()
+            self.pages = [[] for p in catalog_json]
+            for i in range(len(self.pages)):
+                self.pages[i] = \
+                    Page.create_from_json(self.board_name, i, catalog_json[i])
         else:
             res.raise_for_status()
 
@@ -126,20 +121,46 @@ class Page():
     def __iter__(self):
         return iter(self.threads)
     @classmethod
-    def create_from_json(self, page_json):
-        pass
+    def create_from_json(cls, board_name, page_number, page_json, session=None, api=PAGE, https=False):
+        """
+        Create a Page object from an API request JSON response.
+        """
+        page = cls(board_name, page_number, session=session, api=api, https=https)
+        page.update_from_json(page_json)
+        return page
     def update_from_json(self, page_json):
+        """
+        Update a Page using JSON from an API request.
+        """
         if len(page_json.get("threads", [])) > 0:
             self.threads = [[] for i in page_json["threads"]]
             for i in range(len(self.threads)):
                 self.threads[i] = Thread.create_from_json(self.board_name, \
                     page_json["threads"][i], session=self._session, https=self._https)
     def update(self):
+        """
+        Send a request to update the list of threads on the Page.
+        """
         res = self._session.get(self._url)
         if res.status_code == 200:
             self.update_from_json(res.json())
         else:
-            res.raise_from_status()
+            res.raise_for_status()
+    def get_threads(self):
+        """
+        Return the list of Threads from the page.
+        """
+        return self.threads
+    def get_board_name(self):
+        """
+        Return the board name of the Page.
+        """
+        return self.board_name
+    def get_page_number(self):
+        """
+        Return the page number of the Page in the board.
+        """
+        return self.page_number
 
 
 class Thread():
@@ -170,9 +191,17 @@ class Thread():
         return iter(self.posts)
     @classmethod
     def create_from_json(cls, board_name, json_data, session=None, api=THREAD, https=False):
-        thread_id = json_data["posts"][0]["no"]
-        new_thread = cls(board_name, thread_id, session=session, api=api, https=https)
-        new_thread.update_from_json(json_data)
+        if json_data.has_key("posts"):
+            # if we have the individual posts, not just the thread index
+            thread_id = json_data["posts"][0]["no"]
+            new_thread = cls(board_name, thread_id, session=session, api=api, https=https)
+            new_thread.update_from_json(json_data)
+        else:
+            # if we only have the thread index or the catalog
+            new_thread = cls(board_name, json_data["no"], session=session, api=api, https=https)
+            if json_data.has_key("com"):
+                # if we have access to the catalog
+                new_thread.posts.append(Post(board_name, json_data["no"], json_data, session))
         return new_thread
     def update_from_json(self, json_data):
         """
@@ -200,7 +229,7 @@ class Thread():
             if len(res.json()["posts"]) > len(self.posts):
                 self.update_from_json(res.json())
         else:
-            res.raise_from_status()
+            res.raise_for_status()
     def is_sticky(self):
         """
         Return True if the thread is sticky, and False otherwise.
@@ -330,19 +359,19 @@ class Image():
         Returns True if the file has been deleted, otherwise returns False.
         """
         return self.file_deleted
-    def get_file(self):
+    def download_file(self):
         """
         Sends a request to retrieve the file.
         """
-        if self.file_deleted:
+        if self.is_deleted():
             raise(IOError("File was deleted."))
         else:
            pass
-    def get_thumbnail(self):
+    def download_thumbnail(self):
         """
         Sends a request to retrieve the thumbnail image.
         """
-        if self.file_deleted:
+        if self.is_deleted():
             raise(IOError("File was deleted."))
         else:
             pass
@@ -478,3 +507,22 @@ class BoardList():
                 self.board_list.append(BoardMetadata(board_json))
         else:
             res.raise_for_status()
+
+
+######################## Additional Utilities ########################
+
+# todo
+class PyChanUtils():
+    @staticmethod
+    def strip_html(comment):
+        pass
+    @staticmethod
+    def greentext_lines(comment):
+        pass
+    @staticmethod
+    def non_greentext_lines(comment):
+        pass
+    @staticmethod
+    def preprocess_comment(comment):
+        pass
+

@@ -3,12 +3,13 @@ pychan
 
 (WORK IN PROGRESS)
 
-Python wrapper for the [new 4chan API](https://github.com/4chan/4chan-API).
+Python 2.7 wrapper for the [new 4chan API](https://github.com/4chan/4chan-API).
 
 
 Dependencies
 ------------
 
+- Python 2.7
 - [requests](https://github.com/kennethreitz/requests) library by kennethreitz
 
 
@@ -22,17 +23,60 @@ the API.
 Getting Started
 ---------------
 
-There are 7 types of objects in the API: `Board`, `Thread`, `Page`, `Post`,
-`Image`, `BoardList`, and `BoardMetadata`.
+This simple tutorial will show you the basics of pychan. 
 
-To track a board, we can use a `Board` object:
+Make sure to check out the `pychan.py` source and the `help` page for a full list
+of all pychan objects and their methods. 
+
+
+### Tracking and Collecting Content ###
+
+To track a board, we can create a `Board` object:
 
 ```python
 from pychan import *
 g_board = Board("g")
 ```
 
-If we are interested in a particular thread, we can model it with a Thread
+
+`Board` objects contain a list of `Page` objects, which represent each page
+of the board:
+
+```python
+# print each page number
+for page in g_board:
+    print "Page:%s" % page.get_page_number()
+```
+
+
+We can track a particular page (e.g., the first page) on a board by
+creating our own `Page` object:
+
+```python
+a_front_page = Page("a", 0)   # first page of /a/
+a_front_page.update()         # update the list of threads on the page
+```
+
+
+Each `Page` object contains a list of `Thread` objects, which represent the
+threads on that page. We can iterate over a `Page` to access its threads:
+
+```python
+# print the number of replies to the top and second-from-top /a/ threads
+first_thread = a_front_page.get_threads()[0]
+second_thread = a_front_page.get_threads()[1]
+
+print "First thread has %s replies" % len(first_thread.get_num_replies())
+print "Second thread has %s replies" % len(second_thread.get_num_replies())
+
+
+# print the image limit from every thread on the front page of /a/
+for thread in a_front_page:
+    print thread.get_image_limit()
+```
+
+
+If we are interested in a particular thread, we can create our own `Thread`
 object:
 
 ```python
@@ -44,8 +88,6 @@ print "Closed thread?  " + str(g_thread.is_closed())
 print "# of replies:   " + str(g_thread.get_num_replies())
 ```
 
-Check the `help` page or the source code for the full list of methods of the
-`Thread` class.
 
 `Thread` objects are also containers of `Post` objects, which store information
 about individual posts. For example:
@@ -65,12 +107,13 @@ for post in sci_thread:
         break
 ```
 
+
 If a post contains an image, the corresponding `Post` object will contain an
 `Image` object:
 
 ```python
 # print basic info about the images in a thread
-for post in thread:
+for post in sci_thread:
     if post.has_image():
         image = post.get_image()
         print "Post ID: %s" % (post.get_number())
@@ -78,34 +121,88 @@ for post in thread:
         print "Dimensions: %sx%s\n" % (image.get_width(), image.get_height())
 ```
 
-We can track a particular page (e.g., the first page) on a board using a
-`Page` object.
+
+You can also download an image or its thumbnail via the API:
 
 ```python
-a_front_page = Page("a", 0)
-a_front_page.update()         # update the list of threads on the page
+images = []
+thumbnails = []
+for post in sci_thread:
+    if post.has_image():
+        image = post.get_image()
+        image.append(image.download_file())
+        thumbnails.append(image.download_thumbnail())
 ```
 
-Each `Page` objects contains a list of `Thread` objects, which correspond to
-the threads on that page. We can iterate over a `Page` to access its threads:
+
+To recap: `Board` objects contain `Page` objects, `Page` objects contain
+`Thread` objects, `Thread` objects contain `Post` objects, and a `Post` object
+may or may not contain an `Image` object.
 
 ```python
-# print the most recent comment from every thread on the front page
-for thread in a_front_page:
-    print thread.get_posts()[-1].get_comment()
+b_board = Board("b")
+b_board.update_all_threads()
+
+# say we want to count the number of images in /b/
+# two ways of doing this:
+
+# 1
+sum = 0
+for page in b_board:
+    for thread in page:
+        for post in thread:
+            if post.has_image():
+                sum += 1
+
+# 2
+sum = 0
+for thread in b_board.get_all_threads():
+    for post in thread:
+        if post.has_image():
+            sum += 1
 ```
 
-Finally, we can retrieve basic metadata about all boards using a `BoardList`
+
+Unlike `Page` and `Thread` objects, on which you can retrieve updated info just
+by calling `update()`, there are actually several ways to update the list of
+pages in a `Board` object: 
+
+```python
+# update all pages individually
+# (same as looping over the list and calling update() on each one)
+g_board.update_pages()
+
+# update only some pages individually
+# (same as looping over just these pages and calling update() on each one)
+g_board.update_pages([0, 1, 2])
+
+# update all pages using the catalog 
+# (preferred, since it updates the entire board at once)
+g_board.update_from_catalog()
+
+# update all pages at once, using the thread index
+# (also updates the entire board at once, but does not retrieve the OP image)
+g_board.update_from_index()
+```
+
+
+See the `help` page or source for more details.
+
+
+### Collecting Board Metadata ###
+
+We can also retrieve basic metadata about all boards using a `BoardList`
 object:
 
 ```python
 board_list = BoardList()
-board_list.update()
+board_list.update()        # update the list of boards
 ```
 
+
 `BoardList` objects contain a list of `BoardMetadata` objects corresponding
-to each board. We can iterate over a `BoardList` to play around with these
-objects, like so:
+to each board. We can iterate over a `BoardList` to access these objects,
+like so:
 
 ```python
 # print the names and titles of the worksafe boards
