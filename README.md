@@ -6,27 +6,19 @@ pychan
 Python 2.7 wrapper for the [new 4chan API](https://github.com/4chan/4chan-API).
 
 
-Dependencies
-------------
-
-- Python 2.7
-- [requests](https://github.com/kennethreitz/requests) library by kennethreitz
-
-
-Installation
-------------
-
-Nothing to install. Just `git clone` the source and then `import pychan` to use
-the API.
-
-
 Getting Started
 ---------------
 
-This simple tutorial will show you the basics of pychan. 
+This simple tutorial will show you the basics of pychan.
 
 Make sure to check out the `pychan.py` source and the `help` page for a full list
-of all pychan objects and their methods. 
+of all pychan objects and their methods.
+
+
+### Installation ###
+
+Nothing to install. Just `git clone` the source and then `import pychan` to use
+the API.
 
 
 ### Tracking and Collecting Content ###
@@ -165,7 +157,7 @@ for thread in b_board.get_all_threads():
 
 Unlike `Page` and `Thread` objects, on which you can retrieve updated info just
 by calling `update()`, there are actually several ways to update the list of
-pages in a `Board` object: 
+pages in a `Board` object:
 
 ```python
 # update all pages individually
@@ -176,7 +168,7 @@ g_board.update_pages()
 # (same as looping over just these pages and calling update() on each one)
 g_board.update_pages([0, 1, 2])
 
-# update all pages using the catalog 
+# update all pages using the catalog
 # (preferred, since it updates the entire board at once)
 g_board.update_from_catalog()
 

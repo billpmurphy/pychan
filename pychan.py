@@ -1,6 +1,6 @@
-import requests
+from pychan_request import PyChanRequest
+from json import loads
 from datetime import datetime
-from time import sleep
 
 THREAD = "a.4cdn.org/%s/res/%s.json"
 PAGE = "a.4cdn.org/%s/%s.json"
@@ -10,21 +10,17 @@ INDEX = "a.4cdn.org/%s/threads.json"
 CATALOG = "a.4cdn.org/%s/catalog.json"
 BOARDS = "a.4cdn.org/boards.json"
 
+
 ######################## Board/Page/Thread/Post Info ########################
 
 class Board():
-    def __init__(self, board_name, session=None, https=False, index_api=INDEX, catalog_api=CATALOG):
+    def __init__(self, board_name, https=False, session=PyChanRequest.get, index_api=INDEX, catalog_api=CATALOG):
         self.board_name = board_name
+        self._session = session
         self._https = https
         self._index_api = index_api % self.board_name
         self._catalog_api = catalog_api % self.board_name
         self.pages = []
-
-        if session is None:
-            self._session = requests.session()
-            self._session.headers["User-Agent"] = "pychan"
-        else:
-            self._session = session
 
         if self._https:
             self._index_url = "https://" + self._index_api
@@ -70,49 +66,36 @@ class Board():
         for page in self.pages:
             for thread in page:
                 thread.update()
-    def update_from_index(self, api=INDEX):
+    def update_from_index(self):
         """
         Send a request and update the list of pages/threads via the board's
         index.
         """
-        res = self._session.get(self._index_url)
-        if res.status_code == 200:
-            index_json = res.json()
-            self.pages = [[] for p in index_json]
-            for i in range(len(self.pages)):
-                self.pages[i] = \
-                    Page.create_from_json(self.board_name, i, index_json[i])
-        else:
-            res.raise_for_status()
-    def update_from_catalog(self, api=CATALOG):
+        json = loads(self._session(self._index_url))
+        self.pages = [[]] * len(json)
+        for i in range(len(self.pages)):
+            self.pages[i] = Page.create_from_json(self.board_name, i, json[i], \
+                    session=self._session, https=self._https)
+    def update_from_catalog(self):
         """
         Send a request and update the list of pages/threads via the board's
         catalog.
         """
-        res = self._session.get(self._catalog_url)
-        if res.status_code == 200:
-            catalog_json = res.json()
-            self.pages = [[] for p in catalog_json]
-            for i in range(len(self.pages)):
-                self.pages[i] = \
-                    Page.create_from_json(self.board_name, i, catalog_json[i])
-        else:
-            res.raise_for_status()
+        json = loads(self._session(self._catalog_url))
+        self.pages = [[]] * len(json)
+        for i in range(len(self.pages)):
+            self.pages[i] = Page.create_from_json(self.board_name, i, json[i], \
+                    session=self._session, https=self._https)
 
 
 class Page():
-    def __init__(self, board_name, page_number, session=None, api=PAGE, https=False):
+    def __init__(self, board_name, page_number, session=PyChanRequest.get, api=PAGE, https=False):
         self.board_name = board_name
         self.page_number = page_number
         self.threads = []
         self._https = https
         self._api = api % (self.board_name, self.page_number)
-
-        if session is None:
-            self._session = requests.session()
-            self._session.headers["User-Agent"] = "pychan"
-        else:
-            self._session = session
+        self._session = session
 
         if self._https:
             self._url = "https://" + self._api
@@ -141,11 +124,8 @@ class Page():
         """
         Send a request to update the list of threads on the Page.
         """
-        res = self._session.get(self._url)
-        if res.status_code == 200:
-            self.update_from_json(res.json())
-        else:
-            res.raise_for_status()
+        json = loads(self._session(self._url))
+        self.update_from_json(json)
     def get_threads(self):
         """
         Return the list of Threads from the page.
@@ -164,17 +144,12 @@ class Page():
 
 
 class Thread():
-    def __init__(self, board_name, thread_id, session=None, api=THREAD, https=False):
+    def __init__(self, board_name, thread_id, session=PyChanRequest.get, api=THREAD, https=False):
         self.board_name = board_name
         self.thread_id = thread_id
         self._api = api % (self.board_name, self.thread_id)
         self._https = https
-
-        if session is None:
-            self._session = requests.session()
-            self._session.headers["User-Agent"] = "pychan"
-        else:
-            self._session = session
+        self._session = session
 
         if self._https:
             self._url = "https://" + self._api
@@ -201,7 +176,7 @@ class Thread():
             new_thread = cls(board_name, json_data["no"], session=session, api=api, https=https)
             if json_data.has_key("com"):
                 # if we have access to the catalog
-                new_thread.posts.append(Post(board_name, json_data["no"], json_data, session))
+                new_thread.posts.append(Post(board_name, json_data["no"], json_data, session, https))
         return new_thread
     def update_from_json(self, json_data):
         """
@@ -215,19 +190,18 @@ class Thread():
         self.imagelimit = OP.get("imagelimit", None)
         self.num_replies = OP.get("replies", 0)
 
-        self.posts = [[] for i in range(len(json_data["posts"]))]
+        self.posts = [[]] * len(json_data["posts"])
         for i in range(len(self.posts)):
             self.posts[i] = Post(self.board_name, self.thread_id, \
-                json_data["posts"][i], session=self._session)
+                json_data["posts"][i], self._session, self._https)
     def update(self):
         """
         Send a request and update the Thread object if changes have been made
         to the thread.
         """
-        res = self._session.get(self._url)
-        if res.status_code == 200:
-            if len(res.json()["posts"]) > len(self.posts):
-                self.update_from_json(res.json())
+        json = loads(self._session(self._url))
+        if len(json["posts"]) > len(self.posts):
+            self.update_from_json(json)
         else:
             res.raise_for_status()
     def is_sticky(self):
@@ -267,10 +241,11 @@ class Thread():
 
 
 class Post():
-    def __init__(self, board_name, thread_id, post_json, session):
+    def __init__(self, board_name, thread_id, post_json, session, https):
         self.board_name = board_name
         self.thread_id = thread_id
         self._session = session
+        self._https = https
         self.has_file = post_json.has_key("filename")
         self.is_OP = post_json.get("resto", None) == 0
 
@@ -284,7 +259,7 @@ class Post():
         self.timestamp = post_json.get("time", None)
 
         if post_json.has_key("filename"):
-            self.file = Image(self.board_name, post_json, session)
+            self.file = Image(self.board_name, post_json, session, self._https)
         else:
             self.file = None
     def get_name(self):
@@ -338,9 +313,10 @@ class Post():
 
 
 class Image():
-    def __init__(self, board_name, post_json, session, file_api=FILE, thumb_api=THUMBNAIL):
+    def __init__(self, board_name, post_json, session, https, file_api=FILE, thumb_api=THUMBNAIL):
         self.board_name = board_name
         self._session = session
+        self._https = https
         self.filename = post_json.get("filename", None)
         self.file_id = post_json.get("tim", None)
         self.file_md5_hash = post_json.get("md5", None)
@@ -354,6 +330,13 @@ class Image():
 
         self.file_url = file_api % (self.board_name, str(self.file_id) + self.file_extension)
         self.thumb_url = thumb_api % (self.board_name, str(self.file_id))
+
+        if self._https:
+            self.file_url = "https://" + self.file_url
+            self.thumb_url = "https://" + self.thumb_url
+        else:
+            self.file_url = "http://" + self.file_url
+            self.thumb_url = "http://" + self.thumb_url
     def is_deleted(self):
         """
         Returns True if the file has been deleted, otherwise returns False.
@@ -366,7 +349,7 @@ class Image():
         if self.is_deleted():
             raise(IOError("File was deleted."))
         else:
-           pass
+           return self._session(self.get_file_url())
     def download_thumbnail(self):
         """
         Sends a request to retrieve the thumbnail image.
@@ -374,7 +357,7 @@ class Image():
         if self.is_deleted():
             raise(IOError("File was deleted."))
         else:
-            pass
+            return self._session(self.get_thumbnail_url())
     def get_filename(self):
         """
         Returns the filename of the image.
@@ -474,17 +457,13 @@ class BoardMetadata():
         """
         return self.worksafe
 
+
 class BoardList():
-    def __init__(self, api=BOARDS, session=None, https=False):
+    def __init__(self, api=BOARDS, session=PyChanRequest.get, https=False):
         self.board_list = []
         self._api = api
         self._https = https
-
-        if session is None:
-            self._session = requests.session()
-            self._session.headers["User-Agent"] = "pychan"
-        else:
-            self._session = session
+        self._session = session
 
         if self._https:
             self._url = "https://" + self._api
@@ -501,15 +480,12 @@ class BoardList():
         """
         Retrieves the metadata for all boards.
         """
-        res = self._session.get(self._url)
-        if res.status_code == 200:
-            for board_json in res.json()["boards"]:
-                self.board_list.append(BoardMetadata(board_json))
-        else:
-            res.raise_for_status()
+        json = loads(self._session.get(self._url))
+        for board_json in json:
+            self.board_list.append(BoardMetadata(board_json))
 
 
-######################## Additional Utilities ########################
+######################## Text Processing Utilities ########################
 
 # todo
 class PyChanUtils():
@@ -525,4 +501,5 @@ class PyChanUtils():
     @staticmethod
     def preprocess_comment(comment):
         pass
+
 
