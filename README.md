@@ -3,16 +3,23 @@ pychan
 
 (WORK IN PROGRESS)
 
-Python 2.7 wrapper for the [new 4chan API](https://github.com/4chan/4chan-API).
+pychan is an unofficial Python 2.7 wrapper for the [new 4chan API](https://github.com/4chan/4chan-API).
+
+This repo includes:
+
+- `pychan.py`, the main wrapper for the 4chan API
+- `pychan_utils.py`, text preprocessing utilities for handling 4chan comments
+- `pychan_markov.py`, a Markov model that can randomly generate 4chan posts
 
 
 Getting Started
 ---------------
 
-This simple tutorial will show you the basics of pychan.
+This tutorial will show you the basics of pychan.
 
-Make sure to check out the `pychan.py` source and the `help` page for a full list
-of all pychan objects and their methods.
+See the `pychan.py` source and the `help` page for a full list of all pychan
+objects and their methods. You can also check out the `pychan_utils.py` source
+for some text processing utilities.
 
 
 ### Installation ###
@@ -202,3 +209,16 @@ for board in board_list:
     if board.is_worksafe():
         print "/%s/ - %s" % (board.get_name(), board.get_title())
 ```
+
+
+### Text Processing Utilities ###
+
+The `pychan_utils` file contains some additional utilities for handling
+comments.
+
+(more soon)
+
+
+### Markov Comment Generator ###
+
+(more soon)

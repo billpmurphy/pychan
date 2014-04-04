@@ -1,5 +1,6 @@
-from pychan_request import PyChanRequest
+from pychan_utils import PyChanRequest
 from json import loads
+from time import sleep
 from datetime import datetime
 
 THREAD = "a.4cdn.org/%s/res/%s.json"
@@ -62,9 +63,11 @@ class Board():
         Update the list of threads via the index, and then update each thread
         individually.
         """
-        self.update_from_index(self)
-        for page in self.pages:
-            for thread in page:
+        self.update_from_index()
+        for page in reversed(self.pages):
+            for thread in reversed(page.get_threads()):
+                # sleep for 1 second between queries, as per API policy
+                sleep(1)
                 thread.update()
     def update_from_index(self):
         """
@@ -218,10 +221,16 @@ class Thread():
         return self.closed
     def get_posts(self):
         """
-        Returns a list of all posts in the thread, or None if they are not
-        available.
+        Returns a list of all posts in the thread, or the empty list if they
+        are not available.
         """
         return self.posts
+    def get_images(self):
+        """
+        Returns a list of all images in the thread, or the empty list if there
+        are no images.
+        """
+        return [post.get_image() for post in self.get_posts()]
     def get_num_replies(self):
         """
         Returns the number of replies to the OP, or None if this is not
@@ -484,22 +493,5 @@ class BoardList():
         for board_json in json:
             self.board_list.append(BoardMetadata(board_json))
 
-
-######################## Text Processing Utilities ########################
-
-# todo
-class PyChanUtils():
-    @staticmethod
-    def strip_html(comment):
-        pass
-    @staticmethod
-    def greentext_lines(comment):
-        pass
-    @staticmethod
-    def non_greentext_lines(comment):
-        pass
-    @staticmethod
-    def preprocess_comment(comment):
-        pass
 
 
