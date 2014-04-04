@@ -43,14 +43,32 @@ class Board():
         return self.pages
     def get_all_threads(self):
         """
-        Return a list of all threads in the board.
+        Return a list of all threads currently tracked by the current Board
+        object. To ensure this list is complete and up-to-date, call
+        update_pages(), update_from_catalog(), update_from_index(), or
+        update_all_threads() first.
         """
-        return [thread for page in self.pages for thread in page]
+        return [thread for page in self.get_pages() for thread in page]
+    def get_all_posts(self):
+        """
+        Return a list of all posts currently tracked by the current Board
+        object. To ensure this list is complete and up-to-date, call
+        update_all_threads() first.
+        """
+        return [post for thread in self.get_all_threads() for post in thread]
+    def get_all_images(self):
+        """
+        Return a list of all images currently tracked by the current Board
+        object. To ensure this list is complete and up-to-date, call
+        update_all_threads() first.
+        """
+        return [p.get_image() for p in self.get_all_posts() if p.has_image()]
     def update_pages(self, pages=None):
         """
         The `pages` parameter specifies a list of pages to retrieve
-        threads for, otherwise basic info about all threads on all pages are
-        retrieved.
+        threads for, otherwise basic info about all threads on all pages is
+        retrieved. Not that not all posts from each thread are retrieved, only
+        the OP and the 3 or 4 most recent posts.
         """
         if pages is None:
             for page in self.pages:
@@ -61,7 +79,8 @@ class Board():
     def update_all_threads(self):
         """
         Update the list of threads via the index, and then update each thread
-        individually.
+        individually. This will retrieve all posts from all threads in the
+        board.
         """
         self.update_from_index()
         for page in reversed(self.pages):
@@ -72,7 +91,8 @@ class Board():
     def update_from_index(self):
         """
         Send a request and update the list of pages/threads via the board's
-        index.
+        index. Note that this method *only* retrieves thread ids, not the
+        content of any of the posts in the threads.
         """
         json = loads(self._session(self._index_url))
         self.pages = [[]] * len(json)
@@ -82,7 +102,8 @@ class Board():
     def update_from_catalog(self):
         """
         Send a request and update the list of pages/threads via the board's
-        catalog.
+        catalog. Note that this method *only* retrieves thread ids and basic
+        info about the OP of each thread, not all of the posts in the thread.
         """
         json = loads(self._session(self._catalog_url))
         self.pages = [[]] * len(json)
@@ -125,10 +146,21 @@ class Page():
                     page_json["threads"][i], session=self._session, https=self._https)
     def update(self):
         """
-        Send a request to update the list of threads on the Page.
+        Send a request to update the list of threads on the Page. Note that
+        this method does not retrieve all posts from all threads on the page,
+        only the OP and most recent 3 or 4 posts from that thread.
         """
         json = loads(self._session(self._url))
         self.update_from_json(json)
+    def update_all_threads(self):
+        """
+        Send a request to update the list of threads on the Page, and then
+        call update() on each individual thread, retrieving all posts from that
+        thread.
+        """
+        self.update()
+        for thread in self.threads:
+            thread.update()
     def get_threads(self):
         """
         Return the list of Threads from the page.

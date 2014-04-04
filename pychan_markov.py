@@ -13,7 +13,7 @@ class CommentGenerator():
         self.texts = []
         self.start_words = []
         self.word_pairs = {}
-    def update_texts(self):
+    def update_texts(self, include_greentext=False):
         """
         Query the API for all threads in the board and update the Markov model
         using all of the comments from these threads, excluding greentext.
@@ -24,7 +24,7 @@ class CommentGenerator():
             for post in thread:
                 text = post.get_comment()
                 if text is not None:
-                    self.texts.append(PyChanUtils.full_preprocess(text))
+                    self.texts.append(PyChanUtils.full_preprocess(text, include_greentext))
 
         for text in self.texts:
             tokens = text.split(" ")

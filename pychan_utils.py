@@ -4,14 +4,13 @@ from HTMLParser import HTMLParser
 
 ######################## Text Processing Utilities ########################
 
-# work in progress
 class PyChanUtils():
     @staticmethod
     def strip_html(comment):
         parser = HTMLParser()
         comment = parser.unescape(comment)
         comment = sub("<w?br/?>", "\n", comment)
-        comment = sub("<a href=\"(\d+)#p(\d+)\" class=\"quotelink\">", \
+        comment = sub("<a href=\".+\" class=\"(\w+)\">", \
                 " ", comment)
         comment = sub("</a>", " ", comment)
         comment = sub("<span class=\"(\w+)\">", " ", comment)
@@ -29,7 +28,7 @@ class PyChanUtils():
     @staticmethod
     def exclude_greentext_lines(comment):
         lines = comment.split("\n")
-        lines = filter(lambda x: not bool(match("^>(\w+)", x.strip())), lines)
+        lines = filter(lambda x: not bool(match("^>([^>]+)", x.strip())), lines)
         return "\n".join(lines)
     @staticmethod
     def exclude_normal_lines(comment):
@@ -37,10 +36,10 @@ class PyChanUtils():
         lines = filter(lambda x: bool(match("^>(.+)", x)), lines)
         return "\n".join(lines)
     @staticmethod
-    def full_preprocess(comment, exclude_greentext=True):
+    def full_preprocess(comment, include_greentext=True):
         comment = PyChanUtils.strip_html(comment)
         comment = PyChanUtils.exclude_replies(comment)
-        if exclude_greentext:
+        if not include_greentext:
             comment = PyChanUtils.exclude_greentext_lines(comment)
 
         comment = sub("[^\x00-\x7F]", " ", comment)
@@ -50,8 +49,8 @@ class PyChanUtils():
 
         # make sure words are joined on m-dashes and quotes,
         # e.g. don't -> dont
-        #comment = sub("[^a-z \-']+", " ", comment)
-        #comment = sub("'|-", "", comment)
+        comment = sub("[^a-z \-']+", " ", comment)
+        comment = sub("'|-", "", comment)
 
         comment = sub("\\s\\s+", " ", comment)
         comment = sub("\n", " ", comment)
