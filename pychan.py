@@ -56,6 +56,14 @@ class Board():
         update_all_threads() first.
         """
         return [post for thread in self.get_all_threads() for post in thread]
+    def get_all_comments(self):
+        """
+        Return a list of all of the comments in all of the posts currently
+        tracked by the current Board object. To ensure this list is complete
+        and up-to-date, call update_all_threads() first.
+        """
+        return [p.get_comment() for p in self.get_all_posts()
+                if p.get_comment() is not None]
     def get_all_images(self):
         """
         Return a list of all images currently tracked by the current Board
@@ -70,6 +78,7 @@ class Board():
         retrieved. Not that not all posts from each thread are retrieved, only
         the OP and the 3 or 4 most recent posts.
         """
+        self.update_from_index()
         if pages is None:
             for page in self.pages:
                 page.update()
@@ -166,6 +175,11 @@ class Page():
         Return the list of Threads from the page.
         """
         return self.threads
+    def get_num_threads(self):
+        """
+        Return the number of threads on the page.
+        """
+        return len(self.get_threads())
     def get_board_name(self):
         """
         Return the board name of the Page.
@@ -262,7 +276,7 @@ class Thread():
         Returns a list of all images in the thread, or the empty list if there
         are no images.
         """
-        return [post.get_image() for post in self.get_posts()]
+        return [p.get_image() for p in self.get_posts() if p.has_image()]
     def get_num_replies(self):
         """
         Returns the number of replies to the OP, or None if this is not
@@ -294,6 +308,7 @@ class Post():
         self.poster_name = post_json.get("name", None)
         self.poster_email = post_json.get("email", None)
         self.tripcode = post_json.get("trip", None)
+        self.capcode = post_json.get("capcode", None)
         self.subject = post_json.get("sub", None)
         self.comment = post_json.get("com", None)
         self.time = datetime.fromtimestamp(post_json.get("time", 0))
@@ -323,6 +338,11 @@ class Post():
         Return the poster's tripcode, if it exists. Otherwise return None.
         """
         return self.tripcode
+    def get_capcode(self):
+        """
+        Return the poster's capcode, if it exists. Otherwise return None.
+        """
+        return self.capcode
     def get_subject(self):
         """
         Return the subject field of the post.
@@ -338,14 +358,23 @@ class Post():
         Return a datetime object corresponding to when the post was published.
         """
         return self.time
+    def has_comment(self):
+        """
+        Return True if the post contains a comment, otherwise return false.
+        """
+        if self.comment is not None and self.comment != "":
+            return True
+        else:
+            return False
     def has_image(self):
         """
         Return True if the post contains an image that has not been deleted,
         otherwise return False.
         """
-        if self.file is not None:
-            return not self.file.is_deleted()
-        return False
+        if self.file is not None and not self.file.is_deleted():
+            return True
+        else:
+            return False
     def get_image(self):
         """
         Return the post's image, if it has one. Otherwise, return None.
@@ -521,8 +550,8 @@ class BoardList():
         """
         Retrieves the metadata for all boards.
         """
-        json = loads(self._session.get(self._url))
-        for board_json in json:
+        json = loads(self._session(self._url))
+        for board_json in json["boards"]:
             self.board_list.append(BoardMetadata(board_json))
 
 

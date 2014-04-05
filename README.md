@@ -34,9 +34,11 @@ g_board = Board("g")
 `Board` objects contain a list of `Page` objects, which represent each page of the board:
 
 ```python
+g_board.update_pages()
+
 # print each page number
 for page in g_board:
-    print "Page:%s" % page.get_page_number()
+    print "Page %s: %s threads" % (page.get_page_number(), page.get_num_threads())
 ```
 
 
@@ -55,8 +57,8 @@ Each `Page` object contains a list of `Thread` objects, which represent the thre
 first_thread = a_front_page.get_threads()[0]
 second_thread = a_front_page.get_threads()[1]
 
-print "First thread has %s replies" % len(first_thread.get_num_replies())
-print "Second thread has %s replies" % len(second_thread.get_num_replies())
+print "First thread has %s replies" % first_thread.get_num_replies()
+print "Second thread has %s replies" % second_thread.get_num_replies()
 
 
 # print the image limit from every thread on the front page of /a/
@@ -65,8 +67,7 @@ for thread in a_front_page:
 ```
 
 
-If we are interested in a particular thread, we can create our own `Thread`
-object:
+If we are interested in a particular thread, we can create our own `Thread` object:
 
 ```python
 g_thread = Thread("g", "39894014")   # /g/ wiki thread
@@ -93,6 +94,12 @@ for post in sci_thread:
     if post.get_tripcode() is not None:
         print "Yep, someone is using a tripcode"
         break
+
+# is anyone using a capcode?
+for post in sci_thread:
+    if post.get_capcode() is not None:
+        print "Yep, someone is using a capcode"
+        break
 ```
 
 
@@ -117,7 +124,7 @@ thumbnails = []
 for post in sci_thread:
     if post.has_image():
         image = post.get_image()
-        image.append(image.download_file())
+        images.append(image.download_file())
         thumbnails.append(image.download_thumbnail())
 ```
 
@@ -226,9 +233,9 @@ for board in board_list:
 The `pychan_utils.py` file contains some additional utilities for handling comments.
 
 ```python
-b_board = Board("b")
-b_board.update_all_threads()
-comments = b_board.get_all_comments()
+m_board = Board("m")
+m_board.update_all_threads()
+comments = m_board.get_all_comments()
 
 # preprocess and get rid of replies (e.g. >>999999), we just want the text
 from pychan_utils import *
@@ -238,8 +245,8 @@ comments = map(PyChanUtils.exclude_replies, comments)
 # grab all of the non-greentext lines from the posts
 normal_text = map(PyChanUtils.exclude_greentext_lines, comments)
 
-# what is /b/ implying today?
-greentext = map(PyChanUtils.exclude_greentext_lines, comments)
+# what is /m/ implying today?
+greentext = map(PyChanUtils.exclude_normal_lines, comments)
 
 # I want to do text analysis, just strip out everything besides a-z letters
 # and words so I can extract n-grams from the text
@@ -261,7 +268,7 @@ generator.update_texts()              # this may take a minute or so
 print generator.generate()
 ```
 
-Greentext is excluded by default, but you can include it when you call `update_texts()`.
+Greentext is excluded by default, but you can choose to include it in the Markov generator's corpus of sentences when you call `update_texts()`.
 
 ```python
 generator = CommentGenerator("pol") # uh oh

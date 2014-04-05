@@ -33,7 +33,7 @@ class PyChanUtils():
     @staticmethod
     def exclude_normal_lines(comment):
         lines = comment.split("\n")
-        lines = filter(lambda x: bool(match("^>(.+)", x)), lines)
+        lines = filter(lambda x: bool(match("^[^>](.+)", x.strip())), lines)
         return "\n".join(lines)
     @staticmethod
     def full_preprocess(comment, include_greentext=True):
