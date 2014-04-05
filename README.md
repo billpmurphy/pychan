@@ -1,7 +1,7 @@
 pychan
 ======
 
-Pychan is an unofficial Python 2.7 wrapper for the [new 4chan API](https://github.com/4chan/4chan-API).
+Pychan is an unofficial Python 2.7 wrapper for the [4chan API](https://github.com/4chan/4chan-API).
 
 The pychan package includes:
 
@@ -90,12 +90,12 @@ Have fun!
 Pychan API Usage
 ---------------
 
-This tutorial will show you how to get started with the API, but does not go over all of its features. See the `pychan.py` source and the `help` page for a full list of all pychan objects and their methods. You can also check out the `pychan_utils.py` source for some text processing utilities.
+This tutorial will show you how to get started with the API, but does not go over all of its features. See the `pychan.py` source and the `help` page for a full list of all pychan objects and their methods. You can also check out the `pychan_utils.py` source for some text preprocessing utilities.
 
 
 ### Installation ###
 
-Nothing to install. Just `git clone` the source and then `import pychan` to use the API.
+Just `git clone` the source and then `import pychan` to use the API.
 
 
 ### Tracking and Collecting Content ###
@@ -330,6 +330,6 @@ greentext = map(PyChanUtils.exclude_normal_lines, comments)
 texts = map(PyChanUtils.full_preprocess, comments)
 ```
 
-See the `pychan_utils.py` file for more details.
+See the `pychan_utils.py` file or the `help` pages for the full list of methods and more details.
 
 
