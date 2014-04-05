@@ -3,17 +3,94 @@ pychan
 
 Pychan is an unofficial Python 2.7 wrapper for the [new 4chan API](https://github.com/4chan/4chan-API).
 
-This repo includes:
+The pychan package includes:
 
 - `pychan.py`, the main wrapper for the 4chan API
 - `pychan_utils.py`, text preprocessing utilities for handling 4chan posts
 - `pychan_markov.py`, a Markov model that can randomly generate 4chan comments
 
+Markov Comment Generator
+------------------------
 
-Getting Started
+The `pychan_markov.py` file contains a simple Markov text generator that can
+output sentences that sound like comments from a particular board:
+
+```python
+from pychan_markov import *
+generator = CommentGenerator("g")
+generator.update_texts()              # this may take a minute or so
+
+for i in range(7):
+    print generator.generate() + "\n"
+```
+
+
+And the result is:
+
+```
+Look at all love it was a computer. Like, how crazy and pick the naive
+
+Python is an old 8bit synthesizer
+
+Yes, gif was a thousand viruses are compiling gentoo
+
+The Zen of keys as well as much more along with a is better, I somehow inferior CPUs and they idle webm
+
+this kills your toe in to storm his degree, cartoons, bright headphones
+
+who apparently a build software encoding the Spackle to the premise in a millionaire in a thousand threads
+
+I couldnt read K&R but sometimes they even because it but every combination is evil
+```
+
+
+Greentext lines are excluded by default, but you can choose to include it in the corpus of sentences when you call `update_texts()`.
+
+```python
+generator = CommentGenerator("pol") # uh oh
+generator.update_texts(include_greentext=True)
+print generator.generate()
+```
+
+
+Finally, if you want more random/nonsensical output, you can preprocess the text (removing everything but lowercase letters) when the corpus is build. As above, you can choose to include greentext lines or ignore them.
+
+```python
+generator = CommentGenerator("g")
+generator.update_texts(plaintext=True, include_greentext=True)
+
+for i in range(7):
+    print generator.generate() + "\n"
+```
+
+
+This gives us:
+
+```
+i have problems help a human oriented language aka purple dragon regexp
+
+youve grown used for the extra long hey cool as my dekstop
+
+an extension at the worst empirical evidence at the imposing of our spellsim okay so unless you should work if your own computer viruses for me as vanilla linux system provided the entire system shill tox but with none of the phone and
+
+uh whatever to the captcha nonsense the inline on the browser do you really streaming purposes you mootykins saying the quote
+
+node pony tail wget
+
+arch lunix being thinner than maudio has a letter u r algorithms will have a new keyboard with a thread needs in mp codec pack or ignore his project and here
+
+uh huh looks like iterations
+```
+
+
+Have fun!
+
+
+
+Pychan API Usage
 ---------------
 
-This tutorial will show you how to get started with the API, but does not go over all of its features. See the `pychan.py` source and the `help` page for a full list of all pychan objects and their methods. You can also check out the `pychan_utils.py` source for some text processing utilities, and the `pychan_markov.py` source for the Markov comment generator.
+This tutorial will show you how to get started with the API, but does not go over all of its features. See the `pychan.py` source and the `help` page for a full list of all pychan objects and their methods. You can also check out the `pychan_utils.py` source for some text processing utilities.
 
 
 ### Installation ###
@@ -255,26 +332,4 @@ texts = map(PyChanUtils.full_preprocess, comments)
 
 See the `pychan_utils.py` file for more details.
 
-Markov Comment Generator
-------------------------
 
-The `pychan_markov.py` file contains a simple Markov text generator that can
-output sentences that sound like comments from a particular board:
-
-```python
-from pychan_markov import *
-generator = CommentGenerator("g")
-generator.update_texts()              # this may take a minute or so
-print generator.generate()
-```
-
-Greentext is excluded by default, but you can choose to include it in the Markov generator's corpus of sentences when you call `update_texts()`.
-
-```python
-generator = CommentGenerator("pol") # uh oh
-generator.update_texts(include_greentext=True)
-print generator.generate()
-```
-
-
-Have fun!
