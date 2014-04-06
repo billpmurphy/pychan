@@ -243,7 +243,7 @@ image_sum = len(b_board.get_all_images())
 
 ### Querying Content ###
 
-What happens when you call `Thread.update()`? Pychan uses the 4chan API to retrieve information in JSON form about a thread, and then the list of `Post` objects in the `Thread` object are destroyed and replaced with list of `Post` objects based on the JSON returned from the API query.
+What happens when you call `Thread.update()`? Pychan sends a GET request via the 4chan API to retrieve information in JSON form about a thread, and then the list of `Post` objects in the `Thread` object are destroyed and replaced with list of `Post` objects based on the JSON returned from the API query.
 
 Similarly, when you call `Page.update()`, a new list of `Thread` objects are created based on what is returned from the API. However, note that in the case of `Page.update()`, these `Thread` objects do not contain all of the posts in the thread they represent, but instead only the OP and the most recent 3 or 4 posts. This is because calling `Page.update()` is equivalent to looking at a particular page of a particular board in a browser. If you want to retrieve all of the posts from all of the threads in the `Page`, use `Page.update_all_threads()`. This effectively calls `Page.update()` to update the list of threads on the page, and then calls `Thread.update()` on each one.
 
@@ -280,6 +280,8 @@ g_board.update_all_threads()
 ```
 
 When any of these update methods are called, previously stored `Page`, `Thread`, and `Post` are clobbered by the new objects created from the most recent API request. This means that if you have a `Board` object and call `update_from_index()`, all of the `Thread` objects contained in that `Board` will be overwritten with new `Thread` objects. Any information about individual `Post` objects in those pre-existing `Thread` objects will not be preserved.
+
+In accordance with the official API policy, pychan cannot send more than 1 request per second.
 
 Again, see the `help` page or the `pychan.py` source for more details.
 

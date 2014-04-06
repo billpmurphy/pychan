@@ -94,8 +94,6 @@ class Board():
         self.update_from_index()
         for page in reversed(self.pages):
             for thread in reversed(page.get_threads()):
-                # sleep for 1 second between queries, as per API policy
-                sleep(1)
                 thread.update()
     def update_from_index(self):
         """
@@ -103,6 +101,7 @@ class Board():
         index. Note that this method *only* retrieves thread ids, not the
         content of any of the posts in the threads.
         """
+        sleep(1) # sleep for 1 second between queries, as per API policy
         json = loads(self._session(self._index_url))
         self.pages = [[]] * len(json)
         for i in range(len(self.pages)):
@@ -114,6 +113,7 @@ class Board():
         catalog. Note that this method *only* retrieves thread ids and basic
         info about the OP of each thread, not all of the posts in the thread.
         """
+        sleep(1) # sleep for 1 second between queries, as per API policy
         json = loads(self._session(self._catalog_url))
         self.pages = [[]] * len(json)
         for i in range(len(self.pages)):
@@ -159,6 +159,7 @@ class Page():
         this method does not retrieve all posts from all threads on the page,
         only the OP and most recent 3 or 4 posts from that thread.
         """
+        sleep(1) # sleep for 1 second between queries, as per API policy
         json = loads(self._session(self._url))
         self.update_from_json(json)
     def update_all_threads(self):
@@ -248,6 +249,7 @@ class Thread():
         Send a request and update the Thread object if changes have been made
         to the thread.
         """
+        sleep(1) # sleep for 1 second between queries, as per API policy
         json = loads(self._session(self._url))
         if len(json["posts"]) > len(self.posts):
             self.update_from_json(json)
